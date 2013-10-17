@@ -207,7 +207,7 @@ case operation
 
   when 'getconfignames'
     # Output a list of names of environment variables required to configure the operation of this agent
-    puts "RSC_REGION\nRSC_USERNAME\nRSC_APIKEY\nRSC_SERVERNAME"
+    puts "RSC_REGION\nRSC_USERNAME\nRSC_APIKEY\nRSC_AUTHURL"
 
   when 'getinfo-devid'
     puts "STONITH via Rackspace Cloud API"
