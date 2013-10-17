@@ -1,9 +1,9 @@
-#!/usr/bin/env ruby
+#!/usr/bin/env ruby1.9
 #
 # External STONITH module for Rackspace Cloud (NextGen / v2 only)
 #
 # Author: Doug Neal <doug@neal.me.uk>
-# License: GNU General Public License (GPL)
+# License: GNU General Public License v2
 #
 #
 # The STONITH interface is not documented and no guarantees are made as to this agent's adherence to it.
