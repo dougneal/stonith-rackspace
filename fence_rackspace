@@ -1,0 +1,158 @@
+#!/usr/bin/python
+
+import sys, re, pyrax
+
+sys.path.append("/usr/share/fence")
+import fencing
+fencing.all_opt = {
+	"help" : {
+		"getopt"    : "h",
+		"longopt"   : "help",
+		"help"      : "-h, --help                     Display this help and exit",
+		"required"  : "0",
+		"shortdesc" : "Display help and exit",
+		"order"     : 54
+	},
+	"version" : { 
+		"getopt"    : "V",
+		"longopt"   : "version",
+		"help"      : "-V, --version                  Output version information and exit",
+		"required"  : "0",
+		"shortdesc" : "Display version information and exit",
+		"order"     : 53
+	},
+	"quiet" : {
+		"getopt"    : "q",
+		"help"      : "",
+		"order"     : 50
+	},
+	"verbose" : {
+		"getopt"    : "v",
+		"longopt"   : "verbose",
+		"help"      : "-v, --verbose                  Verbose mode",
+		"required"  : "0",
+		"shortdesc" : "Verbose mode",
+		"order"     : 51
+	},
+	"debug" : {
+		"getopt"    : "D:",
+		"longopt"   : "debug-file", 
+		"help"      : "-D, --debug-file=<debugfile>   Debugging to output file",
+		"required"  : "0",
+		"shortdesc" : "Write debug information to given file",
+		"order"     : 52
+	},
+	"delay" : {
+		"getopt"    : "f:",
+		"longopt"   : "delay",
+		"help"      : "--delay <seconds>              Wait X seconds before fencing is started",
+		"required"  : "0",
+		"shortdesc" : "Wait X seconds before fencing is started",
+		"default"   : "0",
+		"order"     : 200
+	},
+	"agent": {
+		"getopt" : "",
+		"help"   : "",
+		"order"  : 1
+	},
+	"action" : {
+		"getopt"    : "o:",
+		"longopt"   : "action",
+		"help"      : "-o, --action=<action>          Action: status, reboot (default), off or on",
+		"required"  : "1",
+		"shortdesc" : "Fencing Action",
+		"default"   : "reboot",
+		"order"     : 1
+	},
+	"server" : {
+	  "getopt"    : "s:",
+	  "longopt"   : "server",
+	  "help"      : "-s, --server=<server>          Name of Cloud Server",
+	  "shortdesc" : "Cloud server name",
+	  "required"  : "0",
+	  "default"   : "",
+	  "order"     : 1
+	},
+	"retry_on" : {
+		"getopt"    : "F:",
+		"longopt"   : "retry-on",
+		"help"      : "--retry-on <attempts>          Count of attempts to retry power on",
+		"default"   : "1",
+		"required"  : "0",
+		"shortdesc" : "Count of attempts to retry power on",
+		"order"     : 201
+	},
+	"login" : {
+	  "getopt"    : "l:",
+	  "longopt"   : "rsc-username=",
+	  "help"      : "--rsc-username=<username>      Username of Rackspace Cloud account",
+	  "required"  : "1",
+	  "order"     : 1
+	},
+	"rsc_apikey" : {
+	  "getopt"    : "p:",
+	  "longopt"   : "rsc-apikey=",
+	  "help"      : "-p, --rsc-apikey=<api key>     Rackspace Cloud API key",
+	  "required"  : "1",
+	  "order"     : 1
+	},
+	"rsc_region" : {
+	  "getopt"    : "R:",
+	  "longopt"   : "rsc-region=",
+	  "help"      : "--rsc-region=<region>          Rackspace Cloud Region (DFW,ORD,IAD,LON,SYD)",
+	  "required"  : "1",
+	  "order"     : 1
+	},
+	"rsc_authurl" : {
+	  "getopt"    : "",
+	  "longopt"   : "rsc-authurl=",
+	  "help"      : "--rsc-authurl=<authurl>        Rackspace Cloud authentication URL",
+	  "required"  : "0",
+	  "shortdesc" : "Override the API's default URL used to authenticate to the cloud service",
+	  "order"     : 1
+	}
+}
+
+
+def set_power_status(conn, options):
+  return
+
+def get_power_status(conn, options):
+  return
+
+def reset(conn, options):
+  return
+
+def rsc_login(options):
+  pyrax.set_credentials(options["-l"], api_key = options["-p"], region = options["-R"])
+  pyrax.set_environment('identity_type', 'rackspace')
+
+  if (options["rsc_authurl"] != None):
+    pyrax.set_environment('auth_endpoint', options["rsc_authurl"])
+
+  cs = pyrax.cloudservers
+  return cs
+
+def main():
+  device_opt = [ "help", "version", "agent", "quiet", "verbose", "debug",
+      "action", "login", "rsc_apikey", "rsc_region", "rsc_authurl", "server" ]
+
+  options = fencing.check_input(device_opt, fencing.process_input(device_opt))
+  import pprint
+  pp = pprint.PrettyPrinter().pprint(options)
+
+  docs = { }
+  docs["shortdesc"] = "Fence agent for Rackspace Cloud"
+  docs["longdesc"]  = "fence_rackspace is a fencing agent which uses the Rackspace Cloud API"
+  docs["vendorurl"] = "http://www.rackspace.com/"
+  fencing.show_docs(options, docs)
+
+  conn = rsc_login(options)
+  result = fence_action(conn, options, set_power_status, get_power_status, get_power_status)
+
+  sys.exit(result)
+
+if __name__ == "__main__":
+  main()
+
