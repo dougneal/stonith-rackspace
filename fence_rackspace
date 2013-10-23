@@ -16,6 +16,9 @@ def log(level, message):
   if level == 'error':
     sys.stderr.write(message+"\n")
 
+  if level == 'notice':
+    sys.stdout.write(message+"\n")
+
 def reboot(conn, options):
   log('debug', 'Rebooting!')
 
@@ -50,8 +53,10 @@ def rsc_get_server(options):
   server_name = options['-s']
 
   try:
+    log('debug', 'Connecting to Rackspace Cloud API')
     pyrax.set_setting('identity_type', 'rackspace')
     pyrax.set_credentials(username, api_key = api_key, region = region)
+    log('debug', 'Enumerating Cloud Servers and locating '+options['-s'])
     cs = pyrax.cloudservers
     server = cs.servers.find(name=options["-s"])
 
@@ -70,35 +75,59 @@ def rsc_get_server(options):
 
 # we can probably lose the server argument to this method as we re-fetch the object for each operation anyway
 def fence_action(server, options, reboot, get_server_status):
+  action        = options['-o']
   server_name   = options['-s']
   delay         = int(options['-f'])
   power_wait    = int(options['-G'])
-  power_timeout = int(options['-g'])
+  timeout       = int(options['-g'])
   safe_states   = ['HARD_REBOOT','DELETED','SUSPENDED']
 
   status = get_server_status(server, options)
-  if (status in safe_states):
-    log('notice', 'Server {0} status is {1}, no action required'.format(server_name, status))
+
+  if action == 'monitor':
+    # The STONITH device is considered healthy if it can successfully report the server's status.
+    # We have already polled for the status. If this had failed we would have bailed out by now,
+    # so just return true for this action and leave it at that
+    log('debug', 'Monitor action called')
     return True
-  else:
-    log('notice', 'Server {0} status is {1}, sending reboot command'.format(server_name, status))
+  
+  elif action == 'status':
+    log('debug', 'Status action called')
+    log('notice', "Server {0} status is {1}".format(server,status))
+    return True
 
-    # wait for time period specified by --delay
-    log('debug', 'Waiting {0} seconds before fencing'.format(delay))
-    time.sleep(delay)
-    reboot(server, options)
+  elif action == 'list':
+    log('debug', 'List action called')
+    log('notice', server_name)
+    return True
 
-    # wait for -G, --power-wait  time period before entering polling loop
-    log('debug', 'Waiting {0} seconds before polling server status'.format(power_wait))
-    time.sleep(power_wait)
+  elif (action == 'on' or action == 'off' or action == 'reboot'):
+    if (status in safe_states):
+      log('notice', 'Server {0} status is {1}, no action required'.format(server_name, status))
+      return True
+    else:
+      log('notice', 'Server {0} status is {1}, sending reboot command'.format(server_name, status))
 
-    # poll every second up to a maximum of -g seconds before failing
-    for i in xrange(power_timeout):
-      status = get_server_status(server, options)
-      if (status in safe_states):
-        return True
-      else:
-        time.sleep(1)
+      # wait for time period specified by --delay
+      log('debug', 'Waiting {0} seconds before fencing'.format(delay))
+      time.sleep(delay)
+      reboot(server, options)
+
+      # wait for -G, --power-wait  time period before entering polling loop
+      log('debug', 'Waiting {0} seconds before polling server status'.format(power_wait))
+      time.sleep(power_wait)
+
+      # poll every second up to a maximum of -g seconds before failing
+      for i in xrange(power_timeout):
+        log('debug', 'Polling server state, attempt {0} of {1}'.format(i, power_timeout))
+        status = get_server_status(server, options)
+        if (status in safe_states):
+          return True
+        else:
+          time.sleep(1)
+      
+      log('error', 'Timed out waiting for server to reach a safe state')
+      fail(EC_TIMED_OUT)
 
   return False
 
@@ -113,6 +142,7 @@ def main():
       "longopt"   : "rsc-username=",
       "help"      : "-l, --rsc-username=<username>  Username of Rackspace Cloud account",
       "required"  : "1",
+      "shortdesc" : "Username of Rackspace Cloud account",
       "order"     : 1
     },
     "rsc_apikey" : {
@@ -120,6 +150,7 @@ def main():
       "longopt"   : "rsc-apikey=",
       "help"      : "-p, --rsc-apikey=<api key>     Rackspace Cloud API key",
       "required"  : "1",
+      "shortdesc" : "API Key for Rackspace Cloud account",
       "order"     : 1
     },
     "rsc_region" : {
@@ -127,6 +158,7 @@ def main():
       "longopt"   : "rsc-region=",
       "help"      : "-r, --rsc-region=<region>      Rackspace Cloud Region (DFW,ORD,IAD,LON,SYD)",
       "required"  : "1",
+      "shortdesc" : "Rackspace Cloud Region (DFW,ORD,IAD,LON,SYD)",
       "order"     : 1
     },
     "rsc_authurl" : {
@@ -166,10 +198,15 @@ def main():
   docs["vendorurl"] = "http://www.rackspace.com/"
   show_docs(options, docs)
 
-  conn = rsc_get_server(options)
-  result = fence_action(conn, options, reboot, get_server_status)
+  log('debug', 'Action invoked was '+options['-o']+' with target '+options['-s'])
 
-  sys.exit(result)
+  conn = rsc_get_server(options)
+  if fence_action(conn, options, reboot, get_server_status):
+    log('notice', 'Success')
+    sys.exit(0)
+  else:
+    log('error', 'Unexpected error: fence_action returned False')
+    fail(EC_STATUS)
 
 if __name__ == "__main__":
   main()
