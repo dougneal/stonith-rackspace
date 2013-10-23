@@ -3,3 +3,8 @@ Gemfile.lock
 .vagrant
 vendor
 
+fence_apc
+fence_bladecenter
+fence_vmware_soap
+fencing.py
+fencing.pyc
