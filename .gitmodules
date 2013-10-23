@@ -1,6 +1,0 @@
-[submodule "pyrax"]
-	path = pyrax
-	url = git@github.com:rackspace/pyrax.git
-[submodule "centos6-python2.7.3"]
-	path = centos6-python2.7.3
-	url = git@github.com:lrsmith/centos6-python2.7.3.git
