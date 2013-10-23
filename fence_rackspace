@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys, re, pyrax, novaclient, pdb
+import sys, re, pyrax, novaclient
 
 sys.path.append("/usr/share/fence")
 from fencing import *
@@ -41,14 +41,7 @@ def get_server_status(server, options):
     log('error', "Caught Exception obtaining server status: "+str(e))
     fail(EC_STATUS)
 
-  if (status == 'ACTIVE'):
-    log('debug', 'Reporting status as on')
-    return 'on'
-  else:
-#  elif (status == 'HARD_REBOOT'):
-    log('debug', 'Reporting status as off')
-    return 'off'
-
+  return status
 
 def rsc_get_server(options):
   username    = options['-l']
@@ -71,6 +64,43 @@ def rsc_get_server(options):
     fail(EC_STATUS)
 
   return server
+
+# Override the fence_action method given in fencing.py which doesn't 
+# correctly handle fencing devices that only provide a reboot command
+
+# we can probably lose the server argument to this method as we re-fetch the object for each operation anyway
+def fence_action(server, options, reboot, get_server_status):
+  server_name   = options['-s']
+  delay         = int(options['-f'])
+  power_wait    = int(options['-G'])
+  power_timeout = int(options['-g'])
+  safe_states   = ['HARD_REBOOT','DELETED','SUSPENDED']
+
+  status = get_server_status(server, options)
+  if (status in safe_states):
+    log('notice', 'Server {0} status is {1}, no action required'.format(server_name, status))
+    return True
+  else:
+    log('notice', 'Server {0} status is {1}, sending reboot command'.format(server_name, status))
+
+    # wait for time period specified by --delay
+    log('debug', 'Waiting {0} seconds before fencing'.format(delay))
+    time.sleep(delay)
+    reboot(server, options)
+
+    # wait for -G, --power-wait  time period before entering polling loop
+    log('debug', 'Waiting {0} seconds before polling server status'.format(power_wait))
+    time.sleep(power_wait)
+
+    # poll every second up to a maximum of -g seconds before failing
+    for i in xrange(power_timeout):
+      status = get_server_status(server, options)
+      if (status in safe_states):
+        return True
+      else:
+        time.sleep(1)
+
+  return False
 
 def main():
   device_opt = [ "help", "version", "agent", "quiet", "verbose", "debug",
@@ -121,9 +151,9 @@ def main():
   all_opt.update(rsc_opts)
   options = check_input(device_opt, process_input(device_opt))
 
-  import pprint
-  pp = pprint.PrettyPrinter()
-  pp.pprint(options)
+  #import pprint
+  #pp = pprint.PrettyPrinter()
+  #pp.pprint(options)
   #pdb.set_trace()
 
   global debug_fh
