@@ -1,0 +1,12 @@
+diff -Naur requests-2.0.0/setup.py requests-2.0.0-dgn/setup.py
+--- requests-2.0.0/setup.py	2013-09-24 17:57:07.000000000 +0000
++++ requests-2.0.0-dgn/setup.py	2013-10-24 15:05:06.592444845 +0000
+@@ -40,7 +40,7 @@
+     package_dir={'requests': 'requests'},
+     include_package_data=True,
+     install_requires=requires,
+-    license=open('LICENSE').read(),
++    license="Apache Software License",
+     zip_safe=False,
+     classifiers=(
+         'Development Status :: 5 - Production/Stable',
